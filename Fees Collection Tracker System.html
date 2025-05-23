@@ -1,0 +1,889 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Fee Collection Tracker and Dashboard</title>
+    <script type="module">
+  // Import the functions you need from the SDKs you need
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/11.7.3/firebase-app.js";
+  import { getAnalytics } from "https://www.gstatic.com/firebasejs/11.7.3/firebase-analytics.js";
+  // TODO: Add SDKs for Firebase products that you want to use
+  // https://firebase.google.com/docs/web/setup#available-libraries
+
+  // Your web app's Firebase configuration
+  // For Firebase JS SDK v7.20.0 and later, measurementId is optional
+  const firebaseConfig = {
+    apiKey: "AIzaSyDRAwyjJ2_1mCohYTmwYWmpHtsdPgLzc34",
+    authDomain: "fees-collection-tracker.firebaseapp.com",
+    projectId: "fees-collection-tracker",
+    storageBucket: "fees-collection-tracker.firebasestorage.app",
+    messagingSenderId: "329457586482",
+    appId: "1:329457586482:web:3f66ea2460a654d18a072b",
+    measurementId: "G-BSWWYX1T6J"
+  };
+
+  // Initialize Firebase
+  const app = initializeApp(firebaseConfig);
+  const analytics = getAnalytics(app);
+    </script>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        h1, h2 { color: #333; }
+        .container { margin-bottom: 30px; }
+        button { 
+            padding: 10px; 
+            background-color: #4CAF50; 
+            color: white; 
+            border: none; 
+            cursor: pointer; 
+            margin: 10px 0; 
+            border-radius: 4px;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        table { border-collapse: collapse; width: 100%; margin-bottom: 20px; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #f2f2f2; }
+        .dashboard { 
+            display: flex; 
+            flex-wrap: wrap; 
+            gap: 30px;
+            justify-content: space-between;
+        }
+        .chart-container { 
+            width: 45%; 
+            min-width: 300px; 
+            height: 320px;
+            border: 1px solid #ddd; 
+            padding: 15px;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            border-radius: 4px;
+            background-color: white;
+        }
+        .summary-box { 
+            background-color: #f9f9f9; 
+            border: 1px solid #ddd; 
+            padding: 15px; 
+            margin-bottom: 25px; 
+            border-radius: 4px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+        .summary-item { margin-bottom: 10px; }
+        .hidden { display: none; }
+        .export-container {
+            background-color: #f9f9f9;
+            padding: 15px;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+        }
+        .form-group {
+            margin-bottom: 10px;
+        }
+        .radio-group {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            margin: 5px 0;
+        }
+        .amount-input {
+            margin-left: 15px;
+            padding: 5px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Fee Collection Tracker System</h1>
+    
+    <div class="container">
+        <h2>Dashboard</h2>
+        <div class="summary-box">
+            <h3>Summary</h3>
+            <div class="summary-item">Total Students: <span id="totalStudents">0</span></div>
+            <div class="summary-item">Total Student Contribution: ₹<span id="totalStudentContribution">0</span></div>
+            <div class="summary-item">Total CSR Sponsorship: ₹<span id="totalCsrSponsorship">0</span></div>
+            <div class="summary-item">Total Discounted Fees: ₹<span id="totalDiscountedFees">0</span></div>
+            <div class="summary-item">Total Write-off: ₹<span id="totalWriteOff">0</span></div>
+            <div class="summary-item">Total Collection: ₹<span id="totalCollection">0</span></div>
+        </div>
+
+        <div class="dashboard">
+            <div class="chart-container">
+                <h3>Trade-wise Distribution</h3>
+                <canvas id="tradeChart"></canvas>
+            </div>
+            <div class="chart-container">
+                <h3>Monthly Collection</h3>
+                <canvas id="monthlyChart"></canvas>
+            </div>
+            <div class="chart-container">
+                <h3>Year-wise Distribution</h3>
+                <canvas id="yearChart"></canvas>
+            </div>
+            <div class="chart-container">
+                <h3>Sponsorship by CSR Partner</h3>
+                <canvas id="partnerChart"></canvas>
+            </div>
+            <div class="chart-container">
+                <h3>Fee Breakdown</h3>
+                <canvas id="feeBreakdownChart"></canvas>
+            </div>
+        </div>
+    </div>
+    
+    <div class="container">
+        <h2>Export Options</h2>
+        <div class="export-container">
+            <div style="display: flex; gap: 15px; flex-wrap: wrap; margin-bottom: 20px;">
+                <button type="button" onclick="exportToExcel()">Export All Data</button>
+                <button type="button" onclick="exportTradeWise()">Export Trade-wise</button>
+                <button type="button" onclick="exportYearWise()">Export Year-wise</button>
+                <button type="button" onclick="exportPartnerWise()">Export CSR Partner-wise</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <h2>Data Entry Form</h2>
+        <form id="feeForm">
+            <table>
+                <tr>
+                    <td>Month:</td>
+                    <td>
+                        <select id="month" required>
+                            <option value="">Select Month</option>
+                            <option value="January">January</option>
+                            <option value="February">February</option>
+                            <option value="March">March</option>
+                            <option value="April">April</option>
+                            <option value="May">May</option>
+                            <option value="June">June</option>
+                            <option value="July">July</option>
+                            <option value="August">August</option>
+                            <option value="September">September</option>
+                            <option value="October">October</option>
+                            <option value="November">November</option>
+                            <option value="December">December</option>
+                        </select>
+                    </td>
+                </tr>
+                <tr>
+                    <td>Trade:</td>
+                    <td>
+                        <select id="trade" required>
+                            <option value="">Select Trade</option>
+                            <option value="Electronics Mechanic">Electronics Mechanic</option>
+                            <option value="RAC">RAC</option>
+                            <option value="Electrician">Electrician</option>
+                            <option value="Fitter">Fitter</option>
+                            <option value="Technician Power Electronics System">Technician Power Electronics System</option>
+                            <option value="Lift & Escalator Mechanic">Lift & Escalator Mechanic</option>
+                            <option value="IoT">IoT</option>
+                        </select>
+                    </td>
+                </tr>
+                <tr>
+                    <td>Student Name:</td>
+                    <td><input type="text" id="studentName" required></td>
+                </tr>
+                <tr>
+                    <td>Year:</td>
+                    <td>
+                        <select id="year" required>
+                            <option value="">Select Year</option>
+                            <option value="First Year">First Year</option>
+                            <option value="Second Year">Second Year</option>
+                        </select>
+                    </td>
+                </tr>
+                <tr>
+                    <td>Student Contribution (₹):</td>
+                    <td><input type="number" id="studentContribution" min="0" required></td>
+                </tr>
+                <tr>
+                    <td>CSR Sponsorship (₹):</td>
+                    <td><input type="number" id="csrSponsorship" min="0" required></td>
+                </tr>
+                <tr>
+                    <td>Discounted Fees:</td>
+                    <td>
+                        <div class="radio-group">
+                            <label><input type="radio" name="discountedFeesOption" value="No" checked onclick="toggleDiscountedFeesInput()"> No</label>
+                            <label><input type="radio" name="discountedFeesOption" value="Yes" onclick="toggleDiscountedFeesInput()"> Yes</label>
+                            <input type="number" id="discountedFees" min="0" class="amount-input hidden" placeholder="Amount (₹)">
+                        </div>
+                    </td>
+                </tr>
+                <tr>
+                    <td>Write-off:</td>
+                    <td>
+                        <div class="radio-group">
+                            <label><input type="radio" name="writeOffOption" value="No" checked onclick="toggleWriteOffInput()"> No</label>
+                            <label><input type="radio" name="writeOffOption" value="Yes" onclick="toggleWriteOffInput()"> Yes</label>
+                            <input type="number" id="writeOff" min="0" class="amount-input hidden" placeholder="Amount (₹)">
+                        </div>
+                    </td>
+                </tr>
+                <tr>
+                    <td>CSR Partner:</td>
+                    <td><input type="text" id="csrPartner" required></td>
+                </tr>
+            </table>
+            <button type="button" onclick="addRecord()">Add Record</button>
+        </form>
+    </div>
+
+    <div class="container">
+        <h2>Records</h2>
+        <div style="overflow-x:auto;">
+            <table id="recordsTable">
+                <thead>
+                    <tr>
+                        <th>Month</th>
+                        <th>Trade</th>
+                        <th>Student Name</th>
+                        <th>Year</th>
+                        <th>Student Contribution (₹)</th>
+                        <th>CSR Sponsorship (₹)</th>
+                        <th>Discounted Fees</th>
+                        <th>Write-off</th>
+                        <th>CSR Partner</th>
+                        <th>Total Amount (₹)</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="recordsList"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <script>
+        let records = [];
+        let tradeChart, monthlyChart, yearChart, partnerChart, feeBreakdownChart;
+
+        // Toggle functions for discounted fees and write-off inputs
+        function toggleDiscountedFeesInput() {
+            const discountedFeesOption = document.querySelector('input[name="discountedFeesOption"]:checked').value;
+            const discountedFeesInput = document.getElementById('discountedFees');
+            
+            if (discountedFeesOption === 'Yes') {
+                discountedFeesInput.classList.remove('hidden');
+                discountedFeesInput.required = true;
+            } else {
+                discountedFeesInput.classList.add('hidden');
+                discountedFeesInput.required = false;
+                discountedFeesInput.value = '';
+            }
+        }
+        
+        function toggleWriteOffInput() {
+            const writeOffOption = document.querySelector('input[name="writeOffOption"]:checked').value;
+            const writeOffInput = document.getElementById('writeOff');
+            
+            if (writeOffOption === 'Yes') {
+                writeOffInput.classList.remove('hidden');
+                writeOffInput.required = true;
+            } else {
+                writeOffInput.classList.add('hidden');
+                writeOffInput.required = false;
+                writeOffInput.value = '';
+            }
+        }
+
+        // Load sample data
+        window.onload = function() {
+            // Add some sample data
+            const sampleData = [
+                {month: "January", trade: "Electronics Mechanic", studentName: "Rahul Kumar", year: "First Year", studentContribution: 5000, csrSponsorship: 15000, discountedFeesOption: "Yes", discountedFees: 1000, writeOffOption: "Yes", writeOff: 500, csrPartner: "Tata Power"},
+                {month: "February", trade: "RAC", studentName: "Priya Singh", year: "Second Year", studentContribution: 4000, csrSponsorship: 16000, discountedFeesOption: "Yes", discountedFees: 800, writeOffOption: "No", writeOff: 0, csrPartner: "Larsen & Toubro"},
+                {month: "March", trade: "Electrician", studentName: "Amit Sharma", year: "First Year", studentContribution: 5000, csrSponsorship: 15000, discountedFeesOption: "No", discountedFees: 0, writeOffOption: "Yes", writeOff: 200, csrPartner: "Reliance Industries"},
+                {month: "January", trade: "IoT", studentName: "Sneha Patel", year: "Second Year", studentContribution: 6000, csrSponsorship: 18000, discountedFeesOption: "Yes", discountedFees: 1200, writeOffOption: "Yes", writeOff: 400, csrPartner: "Infosys"},
+                {month: "February", trade: "Fitter", studentName: "Vikram Joshi", year: "First Year", studentContribution: 4500, csrSponsorship: 15500, discountedFeesOption: "Yes", discountedFees: 900, writeOffOption: "No", writeOff: 0, csrPartner: "BHEL"},
+                {month: "March", trade: "Technician Power Electronics System", studentName: "Neha Gupta", year: "Second Year", studentContribution: 4200, csrSponsorship: 14800, discountedFeesOption: "Yes", discountedFees: 1100, writeOffOption: "No", writeOff: 0, csrPartner: "Godrej"}
+            ];
+            
+            // Add sample data to records
+            records = sampleData;
+            updateTable();
+            updateDashboard();
+        };
+
+        function addRecord() {
+            // Get form values
+            const month = document.getElementById('month').value;
+            const trade = document.getElementById('trade').value;
+            const studentName = document.getElementById('studentName').value;
+            const year = document.getElementById('year').value;
+            const studentContribution = Number(document.getElementById('studentContribution').value);
+            const csrSponsorship = Number(document.getElementById('csrSponsorship').value);
+            
+            // Get discounted fees options and values
+            const discountedFeesOption = document.querySelector('input[name="discountedFeesOption"]:checked').value;
+            let discountedFees = 0;
+            if (discountedFeesOption === 'Yes') {
+                discountedFees = Number(document.getElementById('discountedFees').value);
+                if (!discountedFees && discountedFeesOption === 'Yes') {
+                    alert('Please enter the discounted fees amount');
+                    return;
+                }
+            }
+            
+            // Get write-off options and values
+            const writeOffOption = document.querySelector('input[name="writeOffOption"]:checked').value;
+            let writeOff = 0;
+            if (writeOffOption === 'Yes') {
+                writeOff = Number(document.getElementById('writeOff').value);
+                if (!writeOff && writeOffOption === 'Yes') {
+                    alert('Please enter the write-off amount');
+                    return;
+                }
+            }
+            
+            const csrPartner = document.getElementById('csrPartner').value;
+            
+            // Validate form
+            if (!month || !trade || !studentName || !year || isNaN(studentContribution) || isNaN(csrSponsorship) || 
+                !csrPartner) {
+                alert('Please fill all required fields');
+                return;
+            }
+            
+            // Add to records array
+            records.push({
+                month,
+                trade,
+                studentName,
+                year,
+                studentContribution,
+                csrSponsorship,
+                discountedFeesOption,
+                discountedFees,
+                writeOffOption,
+                writeOff,
+                csrPartner
+            });
+            
+            // Update table and dashboard
+            updateTable();
+            updateDashboard();
+            
+            // Reset form
+            document.getElementById('feeForm').reset();
+            document.getElementById('discountedFees').classList.add('hidden');
+            document.getElementById('writeOff').classList.add('hidden');
+        }
+        
+        function updateTable() {
+            const tableBody = document.getElementById('recordsList');
+            tableBody.innerHTML = '';
+            
+            records.forEach((record, index) => {
+                const totalAmount = record.studentContribution + record.csrSponsorship + record.discountedFees + record.writeOff;
+                const row = `
+                    <tr>
+                        <td>${record.month}</td>
+                        <td>${record.trade}</td>
+                        <td>${record.studentName}</td>
+                        <td>${record.year}</td>
+                        <td>₹${record.studentContribution.toLocaleString()}</td>
+                        <td>₹${record.csrSponsorship.toLocaleString()}</td>
+                        <td>${record.discountedFeesOption === 'Yes' ? '₹' + record.discountedFees.toLocaleString() : 'No'}</td>
+                        <td>${record.writeOffOption === 'Yes' ? '₹' + record.writeOff.toLocaleString() : 'No'}</td>
+                        <td>${record.csrPartner}</td>
+                        <td>₹${totalAmount.toLocaleString()}</td>
+                        <td>
+                            <button onclick="editRecord(${index})">Edit</button>
+                            <button onclick="deleteRecord(${index})">Delete</button>
+                        </td>
+                    </tr>
+                `;
+                tableBody.innerHTML += row;
+            });
+        }
+        
+        function deleteRecord(index) {
+            if (confirm('Are you sure you want to delete this record?')) {
+                records.splice(index, 1);
+                updateTable();
+                updateDashboard();
+            }
+        }
+        
+        function editRecord(index) {
+            const record = records[index];
+            
+            document.getElementById('month').value = record.month;
+            document.getElementById('trade').value = record.trade;
+            document.getElementById('studentName').value = record.studentName;
+            document.getElementById('year').value = record.year;
+            document.getElementById('studentContribution').value = record.studentContribution;
+            document.getElementById('csrSponsorship').value = record.csrSponsorship;
+            
+            // Set discounted fees options
+            const discountedFeesRadios = document.getElementsByName('discountedFeesOption');
+            for (let radio of discountedFeesRadios) {
+                if (radio.value === record.discountedFeesOption) {
+                    radio.checked = true;
+                }
+            }
+            
+            if (record.discountedFeesOption === 'Yes') {
+                document.getElementById('discountedFees').classList.remove('hidden');
+                document.getElementById('discountedFees').value = record.discountedFees;
+            } else {
+                document.getElementById('discountedFees').classList.add('hidden');
+            }
+            
+            // Set write-off options
+            const writeOffRadios = document.getElementsByName('writeOffOption');
+            for (let radio of writeOffRadios) {
+                if (radio.value === record.writeOffOption) {
+                    radio.checked = true;
+                }
+            }
+            
+            if (record.writeOffOption === 'Yes') {
+                document.getElementById('writeOff').classList.remove('hidden');
+                document.getElementById('writeOff').value = record.writeOff;
+            } else {
+                document.getElementById('writeOff').classList.add('hidden');
+            }
+            
+            document.getElementById('csrPartner').value = record.csrPartner;
+            
+            // Delete the record
+            records.splice(index, 1);
+            updateTable();
+            updateDashboard();
+            
+            // Scroll to form
+            document.getElementById('feeForm').scrollIntoView({behavior: 'smooth'});
+        }
+        
+        function updateDashboard() {
+            updateSummary();
+            updateCharts();
+        }
+        
+        function updateSummary() {
+            // Calculate totals
+            const totalStudents = records.length;
+            const totalStudentContribution = records.reduce((sum, record) => sum + record.studentContribution, 0);
+            const totalCsrSponsorship = records.reduce((sum, record) => sum + record.csrSponsorship, 0);
+            const totalDiscountedFees = records.reduce((sum, record) => sum + record.discountedFees, 0);
+            const totalWriteOff = records.reduce((sum, record) => sum + record.writeOff, 0);
+            const totalCollection = totalStudentContribution + totalCsrSponsorship + totalDiscountedFees + totalWriteOff;
+            
+            // Update summary
+            document.getElementById('totalStudents').textContent = totalStudents;
+            document.getElementById('totalStudentContribution').textContent = totalStudentContribution.toLocaleString();
+            document.getElementById('totalCsrSponsorship').textContent = totalCsrSponsorship.toLocaleString();
+            document.getElementById('totalDiscountedFees').textContent = totalDiscountedFees.toLocaleString();
+            document.getElementById('totalWriteOff').textContent = totalWriteOff.toLocaleString();
+            document.getElementById('totalCollection').textContent = totalCollection.toLocaleString();
+        }
+        
+        function updateCharts() {
+            // Destroy existing charts to prevent duplicates
+            if (tradeChart) tradeChart.destroy();
+            if (monthlyChart) monthlyChart.destroy();
+            if (yearChart) yearChart.destroy();
+            if (partnerChart) partnerChart.destroy();
+            if (feeBreakdownChart) feeBreakdownChart.destroy();
+            
+            // Trade-wise Chart
+            const tradeData = {};
+            records.forEach(record => {
+                if (!tradeData[record.trade]) {
+                    tradeData[record.trade] = 0;
+                }
+                tradeData[record.trade] += record.studentContribution + record.csrSponsorship + record.discountedFees + record.writeOff;
+            });
+            
+            const tradeCtx = document.getElementById('tradeChart').getContext('2d');
+            tradeChart = new Chart(tradeCtx, {
+                type: 'pie',
+                data: {
+                    labels: Object.keys(tradeData),
+                    datasets: [{
+                        data: Object.values(tradeData),
+                        backgroundColor: [
+                            '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9F40', '#C9CBCF'
+                        ]
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'right',
+                        },
+                        title: {
+                            display: true,
+                            text: 'Total Collection by Trade (₹)'
+                        }
+                    }
+                }
+            });
+            
+            // Monthly Chart
+            const monthlyData = {};
+            const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+            
+            months.forEach(month => {
+                monthlyData[month] = 0;
+            });
+            
+            records.forEach(record => {
+                monthlyData[record.month] += record.studentContribution + record.csrSponsorship + record.discountedFees + record.writeOff;
+            });
+            
+            const monthlyCtx = document.getElementById('monthlyChart').getContext('2d');
+            monthlyChart = new Chart(monthlyCtx, {
+                type: 'bar',
+                data: {
+                    labels: months,
+                    datasets: [{
+                        label: 'Total Collection',
+                        data: months.map(month => monthlyData[month]),
+                        backgroundColor: '#36A2EB'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'Monthly Collection (₹)'
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+            
+            // Year-wise Chart
+            const yearData = {
+                'First Year': { students: 0, amount: 0 },
+                'Second Year': { students: 0, amount: 0 }
+            };
+            
+            records.forEach(record => {
+                yearData[record.year].students += 1;
+                yearData[record.year].amount += record.studentContribution + record.csrSponsorship + record.discountedFees + record.writeOff;
+            });
+            
+            const yearCtx = document.getElementById('yearChart').getContext('2d');
+            yearChart = new Chart(yearCtx, {
+                type: 'bar',
+                data: {
+                    labels: ['First Year', 'Second Year'],
+                    datasets: [
+                        {
+                            label: 'Number of Students',
+                            data: [yearData['First Year'].students, yearData['Second Year'].students],
+                            backgroundColor: '#FF6384',
+                            yAxisID: 'y'
+                        },
+                        {
+                            label: 'Collection Amount (₹)',
+                            data: [yearData['First Year'].amount, yearData['Second Year'].amount],
+                            backgroundColor: '#4BC0C0',
+                            yAxisID: 'y1'
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'Year-wise Distribution'
+                        }
+                    },
+                    scales: {
+                        y: {
+                            type: 'linear',
+                            display: true,
+                            position: 'left',
+                            title: {
+                                display: true,
+                                text: 'Students'
+                            }
+                        },
+                        y1: {
+                            type: 'linear',
+                            display: true,
+                            position: 'right',
+                            grid: {
+                                drawOnChartArea: false
+                            },
+                            title: {
+                                display: true,
+                                text: 'Amount (₹)'
+                            }
+                        }
+                    }
+                }
+            });
+            
+            // CSR Partner-wise Chart
+            const partnerData = {};
+            records.forEach(record => {
+                if (!partnerData[record.csrPartner]) {
+                    partnerData[record.csrPartner] = 0;
+                }
+                partnerData[record.csrPartner] += record.csrSponsorship;
+            });
+            
+            const partnersArray = Object.keys(partnerData);
+            const sponsorshipArray = Object.values(partnerData);
+            
+            const partnerCtx = document.getElementById('partnerChart').getContext('2d');
+            partnerChart = new Chart(partnerCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: partnersArray,
+                    datasets: [{
+                        data: sponsorshipArray,
+                        backgroundColor: [
+                            '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9F40', '#C9CBCF'
+                        ]
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'right',
+                        },
+                        title: {
+                            display: true,
+                            text: 'CSR Sponsorship by Partner (₹)'
+                        }
+                    }
+                }
+            });
+            
+            // Fee Breakdown Chart
+            const totalStudentContribution = records.reduce((sum, record) => sum + record.studentContribution, 0);
+            const totalCsrSponsorship = records.reduce((sum, record) => sum + record.csrSponsorship, 0);
+            const totalDiscountedFees = records.reduce((sum, record) => sum + record.discountedFees, 0);
+            const totalWriteOff = records.reduce((sum, record) => sum + record.writeOff, 0);
+            
+            const feeBreakdownCtx = document.getElementById('feeBreakdownChart').getContext('2d');
+            feeBreakdownChart = new Chart(feeBreakdownCtx, {
+                type: 'pie',
+                data: {
+                    labels: ['Student Contribution', 'CSR Sponsorship', 'Discounted Fees', 'Write-off'],
+                    datasets: [{
+                        data: [totalStudentContribution, totalCsrSponsorship, totalDiscountedFees, totalWriteOff],
+                        backgroundColor: ['#36A2EB', '#FF6384', '#FFCE56', '#4BC0C0']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'right',
+                        },
+                        title: {
+                            display: true,
+                            text: 'Fee Breakdown (₹)'
+                        }
+                    }
+                }
+            });
+        }
+        
+        function exportToExcel() {
+            try {
+                // Prepare data for export
+                const data = records.map(record => {
+                    return {
+                        'Month': record.month,
+                        'Trade': record.trade,
+                        'Student Name': record.studentName,
+                        'Year': record.year,
+                        'Student Contribution (₹)': record.studentContribution,
+                        'CSR Sponsorship (₹)': record.csrSponsorship,
+                        'Discounted Fees': record.discountedFeesOption === 'Yes' ? '₹' + record.discountedFees : 'No',
+                        'Write-off': record.writeOffOption === 'Yes' ? '₹' + record.writeOff : 'No',
+                        'CSR Partner': record.csrPartner,
+                        'Total Amount (₹)': record.studentContribution + record.csrSponsorship + record.discountedFees + record.writeOff
+                    };
+                });
+                
+                // Create workbook and worksheet
+                const wb = XLSX.utils.book_new();
+                const ws = XLSX.utils.json_to_sheet(data);
+                
+                // Add worksheet to workbook
+                XLSX.utils.book_append_sheet(wb, ws, "Fee Collection Data");
+                
+                // Generate Excel file and download
+                const fileName = "Fee_Collection_Data.xlsx";
+                XLSX.writeFile(wb, fileName);
+                
+            } catch (error) {
+                console.error("Error exporting to Excel:", error);
+                alert("Error exporting data to Excel. Please try again.");
+            }
+        }
+        
+        function exportTradeWise() {
+            try {
+                // Group data by trade
+                const tradeData = {};
+                records.forEach(record => {
+                    if (!tradeData[record.trade]) {
+                        tradeData[record.trade] = {
+                            students: 0,
+                            studentContribution: 0,
+                            csrSponsorship: 0,
+                            discountedFees: 0,
+                            writeOff: 0,
+                            total: 0
+                        };
+                    }
+                    tradeData[record.trade].students += 1;
+                    tradeData[record.trade].studentContribution += record.studentContribution;
+                    tradeData[record.trade].csrSponsorship += record.csrSponsorship;
+                    tradeData[record.trade].discountedFees += record.discountedFees;
+                    tradeData[record.trade].writeOff += record.writeOff;
+                    tradeData[record.trade].total += record.studentContribution + record.csrSponsorship + record.discountedFees + record.writeOff;
+                });
+                
+                // Convert to array format for export
+                const exportData = Object.keys(tradeData).map(trade => {
+                    return {
+                        'Trade': trade,
+                        'Number of Students': tradeData[trade].students,
+                        'Student Contribution (₹)': tradeData[trade].studentContribution,
+                        'CSR Sponsorship (₹)': tradeData[trade].csrSponsorship,
+                        'Discounted Fees (₹)': tradeData[trade].discountedFees,
+                        'Write-off (₹)': tradeData[trade].writeOff,
+                        'Total Collection (₹)': tradeData[trade].total
+                    };
+                });
+                
+                // Create workbook and worksheet
+                const wb = XLSX.utils.book_new();
+                const ws = XLSX.utils.json_to_sheet(exportData);
+                
+                // Add worksheet to workbook
+                XLSX.utils.book_append_sheet(wb, ws, "Trade-wise Data");
+                
+                // Generate Excel file and download
+                const fileName = "Trade_Wise_Collection.xlsx";
+                XLSX.writeFile(wb, fileName);
+                
+            } catch (error) {
+                console.error("Error exporting trade-wise data:", error);
+                alert("Error exporting trade-wise data. Please try again.");
+            }
+        }
+        
+        function exportYearWise() {
+            try {
+                // Group data by year
+                const yearData = {
+                    'First Year': { students: 0, studentContribution: 0, csrSponsorship: 0, discountedFees: 0, writeOff: 0, total: 0 },
+                    'Second Year': { students: 0, studentContribution: 0, csrSponsorship: 0, discountedFees: 0, writeOff: 0, total: 0 }
+                };
+                
+                records.forEach(record => {
+                    yearData[record.year].students += 1;
+                    yearData[record.year].studentContribution += record.studentContribution;
+                    yearData[record.year].csrSponsorship += record.csrSponsorship;
+                    yearData[record.year].discountedFees += record.discountedFees;
+                    yearData[record.year].writeOff += record.writeOff;
+                    yearData[record.year].total += record.studentContribution + record.csrSponsorship + record.discountedFees + record.writeOff;
+                });
+                
+                // Convert to array format for export
+                const exportData = Object.keys(yearData).map(year => {
+                    return {
+                        'Year': year,
+                        'Number of Students': yearData[year].students,
+                        'Student Contribution (₹)': yearData[year].studentContribution,
+                        'CSR Sponsorship (₹)': yearData[year].csrSponsorship,
+                        'Discounted Fees (₹)': yearData[year].discountedFees,
+                        'Write-off (₹)': yearData[year].writeOff,
+                        'Total Collection (₹)': yearData[year].total
+                    };
+                });
+                
+                // Create workbook and worksheet
+                const wb = XLSX.utils.book_new();
+                const ws = XLSX.utils.json_to_sheet(exportData);
+                
+                // Add worksheet to workbook
+                XLSX.utils.book_append_sheet(wb, ws, "Year-wise Data");
+                
+                // Generate Excel file and download
+                const fileName = "Year_Wise_Collection.xlsx";
+                XLSX.writeFile(wb, fileName);
+                
+            } catch (error) {
+                console.error("Error exporting year-wise data:", error);
+                alert("Error exporting year-wise data. Please try again.");
+            }
+        }
+        
+        function exportPartnerWise() {
+            try {
+                // Group data by CSR partner
+                const partnerData = {};
+                records.forEach(record => {
+                    if (!partnerData[record.csrPartner]) {
+                        partnerData[record.csrPartner] = {
+                            students: 0,
+                            sponsorship: 0
+                        };
+                    }
+                    partnerData[record.csrPartner].students += 1;
+                    partnerData[record.csrPartner].sponsorship += record.csrSponsorship;
+                });
+                
+                // Convert to array format for export
+                const exportData = Object.keys(partnerData).map(partner => {
+                    return {
+                        'CSR Partner': partner,
+                        'Number of Students Sponsored': partnerData[partner].students,
+                        'Total Sponsorship Amount (₹)': partnerData[partner].sponsorship
+                    };
+                });
+                
+                // Create workbook and worksheet
+                const wb = XLSX.utils.book_new();
+                const ws = XLSX.utils.json_to_sheet(exportData);
+                
+                // Add worksheet to workbook
+                XLSX.utils.book_append_sheet(wb, ws, "CSR Partner Data");
+                
+                // Generate Excel file and download
+                const fileName = "CSR_Partner_Sponsorship.xlsx";
+                XLSX.writeFile(wb, fileName);
+                
+            } catch (error) {
+                console.error("Error exporting partner-wise data:", error);
+                alert("Error exporting partner-wise data. Please try again.");
+            }
+        }
+    </script>
+</body>
+</html>
